@@ -112,6 +112,24 @@ class HLSPlaylistMerger(object):
         self.input_stream = input_stream
         self.ads = ads_and_timestamps
 
+    
+    def export_main_playlist(self):
+        pass
+
+    def process_playlists(self):
+        
+        input_stream = HlsMasterPlaylistReader(self.input_stream).process_stream()
+        
+        ads_streams = [[HlsMasterPlaylistReader(ad["filename"]).process_stream(), ad["timestamp"]] for ad in self.ads]
+       
+        
+        for i in range(input_stream.playlists):
+            main_stream_video = input_stream.playlists[i]
+            ads_streams_videos = [[ad[0].playlists[i],ad[1]] for ad in ads_streams]
+            HLSStreamMerger(main_stream_video, ads_streams_videos).process_streams()
+            
+        
+            
 
 class HLSStreamMerger(object):
     def __init__(self, input_stream, ads_and_timestamps):
@@ -166,8 +184,12 @@ class HLSStreamMerger(object):
             os.mkdir(output_dir)
 
         # Create file
-        with open(output_dir + os.sep + "index.m3u8", "w") as output_file:
+        with open(output_dir + os.sep + filename, "w") as output_file:
             output_file.write()
+
+            # Write Headers
+
+            # Write Segments
 
 
 if __name__ == "__main__":
