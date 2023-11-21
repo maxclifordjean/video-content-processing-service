@@ -174,41 +174,52 @@ class HLSStreamMerger(object):
             total_video_duration += segment["duration"]
             total_duration += segment["duration"]
 
-        pp(final_segments)
+        #pp(final_segments)
         # self.export(final_segments, "out.hls")
         return final_segments
 
     def export(self, segments, output_dir, filename):
         # Create dir
+    
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
 
+
         # Create file
         with open(output_dir + os.sep + filename, "w") as output_file:
-            output_file.write()
-
             # Write Headers
+            # So far we have chosen to write with a defined target duration
+            output_file.write("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-ALLOW-CACHE:NO\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0\n")
 
+            prev_segment = None
             # Write Segments
+            for segment in segments:
+                pp(segment)
+                if prev_segment and (segment['seg_type'] != prev_segment['seg_type']) :
+                    output_file.write("#EXT-X-DISCONTINUITY\n")
 
+                output_file.write(f"#EXTINF:{segment['duration']}\n../{segment['dirpath'].split('/')[-1]}/{segment['filename']}\n")
+
+            output_file.write("#EXT-X-ENDLIST\n")
+
+            
 
 if __name__ == "__main__":
     print(sys.argv)
     playlist_reader = HlsMasterPlaylistReader(filepath=sys.argv[1])
     main_video = playlist_reader.process_stream()
     video_streams = main_video.playlists
-    pp(main_video.__dict__)
+    
 
 
     ad_playlist_reader = HlsMasterPlaylistReader(filepath=sys.argv[2])
     ad_video = ad_playlist_reader.process_stream()
-    ad_streams = ad_video.playlists[2:]
+    ad_streams = ad_video.playlists[1:]
     
-    pp(ad_video.__dict__)
     
-    for i in range(len(video_streams)):
-        hls_merger = HLSStreamMerger(
-            video_streams[i], [{"stream": ad_streams[i], "timestamp": 50.2}]
-        )
-        segments = hls_merger.process_streams()
-        # hls_merger.export(segments, sys.argv[3])
+    
+    hls_merger = HLSStreamMerger(
+        video_streams[0], [{"stream": ad_streams[0], "timestamp": 50.2}]
+    )
+    segments = hls_merger.process_streams()
+    res =  hls_merger.export(segments=segments, output_dir=sys.argv[3], filename="360.m3u8")
