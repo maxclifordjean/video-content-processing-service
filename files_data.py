@@ -1,6 +1,6 @@
 from typing import List
 
-
+#Master => index.m3u8 as object
 class HLSMaster:
     filepath: str
     directory: str
@@ -13,9 +13,22 @@ class HLSMaster:
         self.directory = directory
         self.playlists = playlists
         self.headers = headers
-       
 
+# Example =>    
+# {
+#     filepath: 'video-storage/hls/my_video/index.m3u8'
+#     directory: 'video-storage/hls/my_video'
+#     playlists:[
+#       HLSPlaylist,
+#       HLSPlaylist,
+#       ...
+#     ],
+#     headers:{
+#
+#     }
+# }
 
+#Variant *.ts as object
 class HLSPlaylist:
 
     filepath: str
@@ -45,3 +58,24 @@ class HLSPlaylist:
     
     def __repr__(self):
         return self.__dict__.__str__()
+
+# Example =>
+# {
+#     'filepath': 'video-storage/hls/my_video/360p.m3u8', 
+#     'resolution': '640x360', 
+#     'dirname': 'video-storage/hls/my_video', 
+#     'segments': [
+#         {'file_name': '360p_000.ts', 'duration': 16.666667}, 
+#         {'file_name': '360p_001.ts', 'duration': 8.333333}, 
+#         {'file_name': '360p_002.ts', 'duration': 5.033333}
+#     ], 
+#     'headers': {'bandwidth': '800000'}
+# }
+
+class Segment:
+    file_name: str,
+    duration: float,
+    seg_type: str, #ENUM => main | ad
+    
+
+    def __init__(self):

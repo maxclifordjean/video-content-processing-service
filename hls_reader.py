@@ -13,6 +13,7 @@ class HlsMasterPlaylistReader(object):
         self.origin_file = filepath
         self.directory = os.path.dirname(filepath)
 
+    #determine each stream from the manifest as object
     def process_stream(self):
         extm3u8_found = False
         ext_x_verion_found = False
@@ -20,7 +21,7 @@ class HlsMasterPlaylistReader(object):
 
         with open(self.origin_file, "r") as input_file:
             count = 0
-            file_lines = iter(input_file.readlines())
+            file_lines = iter(input_file.readlines()) #array containing each line of input file (index.m3U8) master manifest with \n separator
             stream = {}
             for line in file_lines:
                 line = line.replace("\n", "")
@@ -30,32 +31,41 @@ class HlsMasterPlaylistReader(object):
                 extm3u8_found |= line.startswith("#EXTM3U")
                 ext_x_verion_found |= line.startswith("#EXT-X-VERSION:")
                 if line.startswith("#EXT-X-STREAM-INF"):
-                    stream_infos = line.split(":")[-1].split(",")
+                    stream_infos = line.split(":")[-1].split(",") #['BANDWIDTH=5000000', 'RESOLUTION=1920x1080']
                     stream_playlist = (
-                        self.directory + "/" + next(file_lines).replace("\n", "")
+                        self.directory + "/" + next(file_lines).replace("\n", "") #'/Users/maxjean/Documents/video-storage/hls/my_video/1080p.m3u8'
                     )
-
+                    
                     stream.update(
-                        {v.split("=")[0]: v.split("=")[1] for v in stream_infos}
+                        {v.split("=")[0]: v.split("=")[1] for v in stream_infos} #{'BANDWIDTH': '5000000', 'RESOLUTION': '1920x1080'}
                     )
-                    stream["playlist"] = stream_playlist
-                    stream_ok, segments = StreamPlaylistReader(
+                    stream["playlist"] = stream_playlist 
+                    stream_ok, segments = StreamPlaylistReader( #segments => [{'file_name': '1080p_000.ts', 'duration': 10.0}, {'file_name': '1080p_001.ts', 'duration': 10.0}, {'file_name': '1080p_002.ts', 'duration': 10.0}, {'file_name': '1080p_003.ts', 'duration': 0.033333}]
                         stream_playlist
                     ).process_stream()
+                    
                     stream["segments"] = [] if not stream_ok else segments
                     stream["dirname"] = self.directory
 
-                    streams.append(stream)
-            
+                    streams.append(stream) #[{'BANDWIDTH': '5000000', 'RESOLUTION': '1920x1080', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/1080p.m3u8', 'segments': [{'file_name': '1080p_000.ts', 'duration': 10.0}, {'file_name': '1080p_001.ts', 'duration': 10.0}, {'file_name': '1080p_002.ts', 'duration': 10.0}, {'file_name': '1080p_003.ts', 'duration': 0.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}]
+                    
+                    # [   
+                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
+                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
+                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
+                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}
+                    # ]
+            #print(streams)
+           
             return HLSMaster(
-                filepath=self.origin_file,
-                directory=os.path.dirname(self.origin_file),
+                filepath=self.origin_file, #video-storage/hls/my_video/index.m3u8
+                directory=os.path.dirname(self.origin_file), #video-storage/hls/my_video
                 playlists=[HLSPlaylist(playlist_infos=stream) for stream in streams],
                 headers={},
             )
-           
 
-
+ #TODO METHOD2: (used ads_spec) & invoke ad_template, Handles DISCONTINUITY... => we come with a MERGED VERSION with pre-determined segs
+ #How are those ads segs are build from ad MP4 original file??
 class StreamPlaylistReader(object):
     def __init__(self, filepath):
         # We assume, we read a m3u8 file
@@ -83,16 +93,12 @@ class StreamPlaylistReader(object):
                 ext_x_verion_found |= line.startswith("#EXT-X-VERSION:")
                 ext_x_target_duraion_found |= line.startswith("#EXT-X-VERSION:")
                 ext_x_media_sequence_found |= line.startswith("#EXT-X-MEDIA-SEQUENCE")
-                ext_x_endlist_found |= line.startswith("#EXT-X-ENDLIST")
-               
-
-                
-               
+                ext_x_endlist_found |= line.startswith("#EXT-X-ENDLIST")               
 
                 if line.startswith("#EXTINF"):
-                    duration = line.replace(",", "").split(":")[1]
-                    segment = next(file_lines).replace("\n", "")
-                    segments.append(dict(file_name=segment, duration=float(duration)))
+                    duration = line.replace(",", "").split(":")[1] #16.666667
+                    segment = next(file_lines).replace("\n", "") #segment=> 360p_000.ts
+                    segments.append(dict(file_name=segment, duration=float(duration))) #TODO BUILD A SEGMENT CLASS
 
             all_headers = (
                 extm3u8_found
@@ -122,7 +128,7 @@ class HLSPlaylistMerger(object):
         
         ads_streams = [[HlsMasterPlaylistReader(ad["filename"]).process_stream(), ad["timestamp"]] for ad in self.ads]
        
-        
+        #merging playlist segments from primary video & ads playlist segments
         for i in range(input_stream.playlists):
             main_stream_video = input_stream.playlists[i]
             ads_streams_videos = [[ad[0].playlists[i],ad[1]] for ad in ads_streams]
@@ -130,7 +136,8 @@ class HLSPlaylistMerger(object):
             
         
             
-
+#TODO Handles DISCONTINUITY & SEQUENCES & TIMELINE + Marks ads needs to be transcoded or zone delimitation | in EXPORT phase ??
+#TODO Careful how can we merge playlists ads that have not been transcoded in order to fit with primary video??
 class HLSStreamMerger(object):
     def __init__(self, input_stream, ads_and_timestamps):
         self.input_stream = input_stream
@@ -138,22 +145,23 @@ class HLSStreamMerger(object):
 
     def process_streams(self):
         sorted_ads = sorted(self.ads, key=lambda x: x["timestamp"])
-        total_video_duration: float = 0.0
-        total_duration: float = 0.0
-        final_segments = []
+        total_video_duration: float = 0.0 #result primary video sum segments durations
+        total_duration: float = 0.0 #result primary video & ad segments durations
+        final_segments = [] #keep track of all segments primary video + ads
         for segment in self.input_stream.segments:
-            ads_to_insert = []
+            ads_to_insert = [] #??TODO not used
             for ad in sorted_ads:
-
+                #we step by seg & gather on primary video position cursor until we reach ad position cursor limit
+                #until we not reach the ad position cursor on the primary video
                 if (
-                    total_video_duration
+                    total_video_duration #previous total_duration reach
                     <= ad["timestamp"]
-                    <= total_video_duration + segment["duration"]
+                    <= total_video_duration + segment["duration"] #total duration augmented with next video seg
                 ):
-                    ads_to_insert.append(ad)
+                    ads_to_insert.append(ad) #??
                     pp(ad)
                     for ad_segment in ad["stream"].segments:
-                        final_segments.append(
+                        final_segments.append( #TODO BUILD A SEGMENT CLASS
                             dict(
                                 seg_type="ad",
                                 duration=ad_segment["duration"],
@@ -161,10 +169,10 @@ class HLSStreamMerger(object):
                                 dirpath=ad["stream"].dirname,
                             )
                         )
-                        total_duration += ad_segment["duration"]
+                        total_duration += ad_segment["duration"] #total duration augmented with ad seg duration
 
             final_segments.append(
-                dict(
+                dict( #TODO BUILD A SEGMENT CLASS
                     seg_type="main",
                     duration=segment["duration"],
                     filename=segment["file_name"],
@@ -194,21 +202,21 @@ class HLSStreamMerger(object):
 
 if __name__ == "__main__":
     print(sys.argv)
-    playlist_reader = HlsMasterPlaylistReader(filepath=sys.argv[1])
-    main_video = playlist_reader.process_stream()
-    video_streams = main_video.playlists
+    playlist_reader = HlsMasterPlaylistReader(filepath=sys.argv[1]) #master primary
+    main_video = playlist_reader.process_stream() #plist segs of master primary (multi variants)
+    video_streams = main_video.playlists #multi variants segs
     pp(main_video.__dict__)
 
-
+    # TODO METHOD1: build a pre-determined ad variantPlist & used the same masterPlist than the primary Video?? (used ads_spec) : NO SENSE
     ad_playlist_reader = HlsMasterPlaylistReader(filepath=sys.argv[2])
     ad_video = ad_playlist_reader.process_stream()
     ad_streams = ad_video.playlists[2:]
     
     pp(ad_video.__dict__)
     
-    for i in range(len(video_streams)):
+    for i in range(len(video_streams)): #for each variant do merge with ads breaks positions
         hls_merger = HLSStreamMerger(
             video_streams[i], [{"stream": ad_streams[i], "timestamp": 50.2}]
         )
         segments = hls_merger.process_streams()
-        # hls_merger.export(segments, sys.argv[3])
+        hls_merger.export(segments, sys.argv[3])
