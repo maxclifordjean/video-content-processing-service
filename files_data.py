@@ -79,3 +79,15 @@ class Segment:
     
 
     def __init__(self):
+        return
+
+
+class Resolution:
+    width: int,
+    height: int,
+
+    def __init__(self):
+        return
+
+    def get_resolution(self):
+        return str(self.width)+'x'+str(self.height)

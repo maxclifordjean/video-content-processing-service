@@ -21,7 +21,7 @@ class HlsMasterPlaylistReader(object):
 
         with open(self.origin_file, "r") as input_file:
             count = 0
-            file_lines = iter(input_file.readlines()) #array containing each line of input file (index.m3U8) master manifest with \n separator
+            file_lines = iter(input_file.readlines())
             stream = {}
             for line in file_lines:
                 line = line.replace("\n", "")
@@ -31,35 +31,27 @@ class HlsMasterPlaylistReader(object):
                 extm3u8_found |= line.startswith("#EXTM3U")
                 ext_x_verion_found |= line.startswith("#EXT-X-VERSION:")
                 if line.startswith("#EXT-X-STREAM-INF"):
-                    stream_infos = line.split(":")[-1].split(",") #['BANDWIDTH=5000000', 'RESOLUTION=1920x1080']
+                    stream_infos = line.split(":")[-1].split(",")
                     stream_playlist = (
-                        self.directory + "/" + next(file_lines).replace("\n", "") #'/Users/maxjean/Documents/video-storage/hls/my_video/1080p.m3u8'
+                        self.directory + "/" + next(file_lines).replace("\n", "") 
                     )
                     
                     stream.update(
-                        {v.split("=")[0]: v.split("=")[1] for v in stream_infos} #{'BANDWIDTH': '5000000', 'RESOLUTION': '1920x1080'}
+                        {v.split("=")[0]: v.split("=")[1] for v in stream_infos}
                     )
                     stream["playlist"] = stream_playlist 
-                    stream_ok, segments = StreamPlaylistReader( #segments => [{'file_name': '1080p_000.ts', 'duration': 10.0}, {'file_name': '1080p_001.ts', 'duration': 10.0}, {'file_name': '1080p_002.ts', 'duration': 10.0}, {'file_name': '1080p_003.ts', 'duration': 0.033333}]
+                    stream_ok, segments = StreamPlaylistReader(
                         stream_playlist
                     ).process_stream()
                     
                     stream["segments"] = [] if not stream_ok else segments
                     stream["dirname"] = self.directory
 
-                    streams.append(stream) #[{'BANDWIDTH': '5000000', 'RESOLUTION': '1920x1080', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/1080p.m3u8', 'segments': [{'file_name': '1080p_000.ts', 'duration': 10.0}, {'file_name': '1080p_001.ts', 'duration': 10.0}, {'file_name': '1080p_002.ts', 'duration': 10.0}, {'file_name': '1080p_003.ts', 'duration': 0.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}]
-                    
-                    # [   
-                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
-                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
-                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}, 
-                    #     {'BANDWIDTH': '800000', 'RESOLUTION': '640x360', 'playlist': '/Users/maxjean/Documents/video-storage/hls/my_video/360p.m3u8', 'segments': [{'file_name': '360p_000.ts', 'duration': 16.666667}, {'file_name': '360p_001.ts', 'duration': 8.333333}, {'file_name': '360p_002.ts', 'duration': 5.033333}], 'dirname': '/Users/maxjean/Documents/video-storage/hls/my_video'}
-                    # ]
-            #print(streams)
+                    streams.append(stream)
            
             return HLSMaster(
-                filepath=self.origin_file, #video-storage/hls/my_video/index.m3u8
-                directory=os.path.dirname(self.origin_file), #video-storage/hls/my_video
+                filepath=self.origin_file,
+                directory=os.path.dirname(self.origin_file),
                 playlists=[HLSPlaylist(playlist_infos=stream) for stream in streams],
                 headers={},
             )
@@ -96,8 +88,8 @@ class StreamPlaylistReader(object):
                 ext_x_endlist_found |= line.startswith("#EXT-X-ENDLIST")               
 
                 if line.startswith("#EXTINF"):
-                    duration = line.replace(",", "").split(":")[1] #16.666667
-                    segment = next(file_lines).replace("\n", "") #segment=> 360p_000.ts
+                    duration = line.replace(",", "").split(":")[1]
+                    segment = next(file_lines).replace("\n", "")
                     segments.append(dict(file_name=segment, duration=float(duration))) #TODO BUILD A SEGMENT CLASS
 
             all_headers = (
