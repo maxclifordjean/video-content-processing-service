@@ -5,6 +5,7 @@ import time
 import os
 import sys
 from pprint import pp
+from files_data2 import Master, Playlist, Resolution
 
 def seconds(time):
     s=0
@@ -31,7 +32,6 @@ ET.register_namespace('','urn:mpeg:dash:schema:mpd:2011')
 def get_format(AdaptationSet, Representation):
     if((Representation.get('mimeType') == 'video/mp4') or (AdaptationSet.get('mimeType') == 'video/mp4') or (AdaptationSet.get('contentType') == 'video')): return 'video'
     if((Representation.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('contentType') == 'audio')): return 'audio'
-
 
 class DashMasterPlaylistReader(object):
     def __init__(self, filepath):
@@ -62,10 +62,11 @@ class DashMasterPlaylistReader(object):
                 for AdaptationSet in Period.findall(_ns("AdaptationSet")):
                     for Representation in AdaptationSet.findall(_ns("Representation")):
                         stream = {} #playlist variant (= 1 Representation)
+                        stream["playlist"] = self.directory + "/" + self.origin_file #TODO ??
+                        stream["dirname"] = self.directory
                         stream['contentType'] = get_format(AdaptationSet, Representation)
-                        stream['bandwidth'] = Representation.get('bandwidth')
-                        stream['width'] = Representation.get('width')
-                        stream['height'] = Representation.get('height')
+                        stream['BANDWIDTH'] = Representation.get('bandwidth')
+                        stream['RESOLUTION'] = Resolution(Representation.get('width'), Representation.get('height'))
 
                         #get segments for current period
                         segments = []
@@ -75,10 +76,11 @@ class DashMasterPlaylistReader(object):
                                 if "t" in S.attrib: t=int(S.attrib["t"])
                                 d=int(S.attrib["d"])
                                 r=int(S.attrib["r"]) if "r" in S.attrib else 0
-                                segment = ((pId, seconds(pStart)), Representation.get('id'), timescale, t,d,r,)
-                                segments.append(segment)
+                                segTL = ((pId, seconds(pStart)), Representation.get('id'), timescale, t,d,r,)
+                                duration = None #TODO calcul seg duration ?
+                                segments.append(segTL)
 
-                        stream['segments'] = segments
+                        stream['segments'] = segments #TODO segments or segmentsTLs ??
 
                         #update existing stream with segments or insert complete new stream (video or audio)
                         if len(streams) > 0 :
@@ -87,30 +89,38 @@ class DashMasterPlaylistReader(object):
                                 #update existing stream
                                 s = streams[idx]
                                 if(
-                                    ((stream['contentType'] == 'video') and ((s['bandwidth']==stream['bandwidth']) and (s['width']==stream['width']) and (s['height']==stream['height']))) 
+                                    ((stream['contentType'] == 'video') and ((s['BANDWIDTH']==stream['BANDWIDTH']) and (s['RESOLUTION'].get_resolution()==stream['RESOLUTION'].get_resolution()))) 
                                     or 
-                                    ((stream['contentType'] == 'audio') and ((s['bandwidth']==stream['bandwidth'])))
+                                    ((stream['contentType'] == 'audio') and ((s['BANDWIDTH']==stream['BANDWIDTH'])))
                                 ):
-                                    streams[idx]['segments'] = streams[idx]['segments'] + stream['segments']
+                                    streams[idx]['segments'] = streams[idx]['segments'] + stream['segments'] #add segments into existing stream
                                     count_update+=1
                             
                             #insert new stream
                             if count_update==0:
                                 streams.append(stream)
                         else:
-                            streams.append(stream)
+                            streams.append(stream) #init streams with new stream
 
             pp("DashMasterPlaylistReader#process_stream#streams : ")
             pp(streams)
-
-# #Variant Playlist
-# class StreamPlaylistReader(object):
-
-# #Periodic Segments
-# class SegmentsPeriodReader(object):
+            
+            return Master(
+                filepath=self.origin_file,
+                directory=os.path.dirname(self.origin_file),
+                playlists=[Playlist(playlist_infos=stream) for stream in streams],
+                headers={},
+            )
+    
+    def set_media_presentation_duration(self):
+        return
 
 # v = seconds("PT0H1M59.89S")
 # print('PT0H1M59.89S', v, type(v))
 # print('119.89', iso8601(v))
 
 dmPlist = DashMasterPlaylistReader('./video-storage/dash/my_video/index.mpd').process_stream()
+#TODO NEXT => Video Content merge with Periodic Ads placement
+#TODO THEN => Personalized Manifest: Export/Write obj -> mpd + Calcul (mediaPresentationDuration,...)
+
+#NOTE => for now the main goal is to be able to parse mpd with segmentsTLs and insert ADs based on period instead of segment partial duration, so no calcul required based on segs. In the case we evolve based on segments partials maybe we could transcode video mezzanine into segments playlists as HLS
