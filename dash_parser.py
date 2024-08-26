@@ -67,20 +67,18 @@ class DashMasterPlaylistReader(object):
                         stream['contentType'] = get_format(AdaptationSet, Representation)
                         stream['BANDWIDTH'] = Representation.get('bandwidth')
                         stream['RESOLUTION'] = Resolution(Representation.get('width'), Representation.get('height'))
+                        stream['segments'] = []
 
                         #get segments for current period
-                        segments = []
                         for SegmentTemplate in Representation.findall(_ns("SegmentTemplate")):
-                            timescale = SegmentTemplate.get('timescale')
+                            timescale = float(SegmentTemplate.get('timescale'))
                             for S in SegmentTemplate.findall(_ns("SegmentTimeline")+"/"+_ns("S")):
-                                if "t" in S.attrib: t=int(S.attrib["t"])
-                                d=int(S.attrib["d"])
-                                r=int(S.attrib["r"]) if "r" in S.attrib else 0
-                                segTL = ((pId, seconds(pStart)), Representation.get('id'), timescale, t,d,r,)
-                                duration = None #TODO calcul seg duration ?
-                                segments.append(segTL)
-
-                        stream['segments'] = segments #TODO segments or segmentsTLs ??
+                                if "t" in S.attrib: t=int(S.attrib["t"]) #segment offset in timescale unit
+                                d=int(S.attrib["d"]) #segment duration in timescale unit
+                                r=int(S.attrib["r"]) if "r" in S.attrib else 0 #nb of similar consecutive segments
+                                seg_tl_duration = (d*(r+1))/timescale
+                                seg_tl = ((pId, seconds(pStart)), Representation.get('id'), timescale, t,d,r, seg_tl_duration)
+                                stream['segments'].append(seg_tl) #TODO segments or segmentsTLs ?? => (seg, seg_tl)
 
                         #update existing stream with segments or insert complete new stream (video or audio)
                         if len(streams) > 0 :

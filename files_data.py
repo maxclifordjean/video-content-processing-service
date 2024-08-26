@@ -86,8 +86,9 @@ class Resolution:
     width: int,
     height: int,
 
-    def __init__(self):
-        return
+    def __init__(self, width:int, height:int):
+        self.width = width
+        self.height = height
 
     def get_resolution(self):
         return str(self.width)+'x'+str(self.height)
