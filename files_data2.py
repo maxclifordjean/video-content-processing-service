@@ -20,6 +20,7 @@ class Playlist:
     resolution: str
     segments: List
     headers :dict
+    contentType : str
 
 
     def __init__(self, filepath: str, resolution: str, segments: List, headers: dict, dirname:str):
@@ -35,7 +36,10 @@ class Playlist:
         self.dirname = playlist_infos.get("dirname")
     
         self.segments = playlist_infos.get("segments")
-        self.headers = dict(bandwidth=playlist_infos.get("BANDWIDTH"))
+        self.headers = dict(
+            bandwidth=playlist_infos.get("BANDWIDTH"),
+            contentType=playlist_infos.get("contentType")
+        )
         
     def __str__(self):
         return self.__dict__.__str__()

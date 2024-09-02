@@ -148,7 +148,7 @@ class HLSStreamMerger(object):
                 if (
                     total_video_duration #previous total_duration reach
                     <= ad["timestamp"]
-                    <= total_video_duration + segment["duration"] #total duration augmented with next video seg
+                    <= total_video_duration + segment["duration"] #total video main duration augmented with next video seg
                 ):
                     ads_to_insert.append(ad) #??
                     pp(ad)
