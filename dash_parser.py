@@ -256,6 +256,9 @@ class DashMerger():
     def find_streams(self):
         return
 
+    def find_segs(self):
+        return
+
 #update dash manifest based on merged object streams (include main, ad streams)
 class DashMainManifestEditor():
     def __init__(self, main_mpd,merged_streams,ad_tpl):
@@ -301,6 +304,13 @@ class DashMainManifestEditor():
                     #We need to update with same period, all sub-elements for each streams
                     #So we based on the merged streams
                     for merged_stream in self.merged_streams['video']:
+                        segs_tl = []
+                        SegmentTemplate = None
+
+                        for seg in merged_stream['segments']:
+                            if((seg['seg_type'] == 'ad') and (seg["period_id"] == merged_seg['period_id'])):
+                                segs_tl.append(seg["timeline"]) #capture current stream timeline segs (ad)
+                                
                         for seg in merged_stream["segments"]:
                             if((seg['seg_type'] == 'ad') and (seg["period_id"] == merged_seg['period_id'])): #filter on current period only
                                 for AdaptationSet in self.ad_tpl.find(ns("Period")): #we build period sub-elements from an AD template
@@ -324,7 +334,16 @@ class DashMainManifestEditor():
                                     for f in ["initialization","media"]:
                                         SegmentTemplate.attrib[f]=seg[f] #TODO update again SegmentTemplate attributes (initialization, media) based on transcoding & user path stored ad
 
-                                    #TODO SET SEGMENT_TIMELINE
+                                    #SET SEGMENT_TIMELINE
+                                    if not (SegmentTemplate is None):
+                                        SegmentTimeline=ET.SubElement(SegmentTemplate,ns("SegmentTimeline"))
+                                        for seg_tl in segs_tl:
+                                            S = ET.SubElement(SegmentTimeline,ns("S"))
+                                            S.attrib["t"] = str(seg_tl[0])
+                                            S.attrib["d"] = str(seg_tl[1])
+                                            if seg_tl[2]>0:
+                                                S.attrib["r"] = str(seg_tl[2])
+
             
                 #We only need to update current period informations based on one stream selection only
                 if merged_seg['seg_type'] == 'main':
@@ -341,6 +360,14 @@ class DashMainManifestEditor():
                                 }
                             )
 
+                            #TODO instead of this build a method which filter by format,old_period_id,seg_type to get segs: DashMerger.find_segs(...)
+                            #OR by parsing main manifest segmentTimeline
+                            main_segs_tl = []
+                            for seg in self.merged_streams['video'][1]['segments']:
+                                if ((seg['old_period_id'] == op.get('id')) and (seg['seg_type'] == 'main')):
+                                    main_segs_tl.append(seg["timeline"]) #capture select stream timeline segs (main)
+                            ## /!\ video & audio
+                                
                             #stream per stream apply copy from origin manifest
                             for AdaptationSet in op:
                                 AdaptationSet1=ET.SubElement(Period1,ns("AdaptationSet"),AdaptationSet.attrib)
@@ -352,11 +379,21 @@ class DashMainManifestEditor():
                                 ar_count=ar_count+1
 
                                 #segments
-                                SegmentTemplate1=ET.SubElement(Representation1,ns("SegmentTemplate"),AdaptationSet.find(ns("Representation")+"/"+ns("SegmentTemplate")).attrib)
-                                SegmentTemplate1.attrib["presentationTimeOffset"]=str() #TODO calcul?
+                                mainSegmentTemplate=ET.SubElement(Representation1,ns("SegmentTemplate"),AdaptationSet.find(ns("Representation")+"/"+ns("SegmentTemplate")).attrib)
+                                mainSegmentTemplate.attrib["presentationTimeOffset"]=str() #TODO calcul?
 
-                                #TODO SET SEGMENT_TIMELINE
-
+                                #SET SEGMENT_TIMELINE
+                                if not (mainSegmentTemplate is None):
+                                    #/!\ for now we update only video ones
+                                    #TODO manage for audio also
+                                    if(get_format(AdaptationSet1,Representation1)=='video'):
+                                        SegmentTimeline=ET.SubElement(mainSegmentTemplate,ns("SegmentTimeline"))
+                                        for seg_tl in main_segs_tl:
+                                            S = ET.SubElement(SegmentTimeline,ns("S"))
+                                            S.attrib["t"] = str(seg_tl[0])
+                                            S.attrib["d"] = str(seg_tl[1])
+                                            if seg_tl[2]>0:
+                                                S.attrib["r"] = str(seg_tl[2])
                             continue
 
     #export as mpd file
@@ -389,7 +426,7 @@ print('proceed merge...')
 merged_manifests = DashMerger(dmPlist,[{"master": ADdmPlist, "timestamp": 31.033}])
 merged_manifests.process_streams()
 
-#TODO THEN => Personalized Manifest: Export/Write obj -> mpd + Calcul (mediaPresentationDuration,...)
+#Personalized Manifest: Export/Write obj -> mpd + Calcul (mediaPresentationDuration,...)
 personalized_manifest = DashMainManifestEditor('./video-storage/dash/my_video/index.mpd', merged_manifests.output_streams,ad_tpl)
 personalized_manifest.to_mpd() #process
 print('DashMainManifestEditor#to_mpd#FINAL MANIFEST: ')
