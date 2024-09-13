@@ -31,12 +31,8 @@ def iso8601(s):
 def ns(tag):
     return "{urn:mpeg:dash:schema:mpd:2011}"+tag
 
-
-def get_format(AdaptationSet, Representation):
-    if((Representation.get('mimeType') == 'video/mp4') or (AdaptationSet.get('mimeType') == 'video/mp4') or (AdaptationSet.get('contentType') == 'video')): return 'video'
-    if((Representation.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('contentType') == 'audio')): return 'audio'
-
 ET.register_namespace('','urn:mpeg:dash:schema:mpd:2011')
+XML_HEADER = '<?xml version="1.0" encoding="utf-8"?>'
 
 ad_tpl=ET.fromstring("""<?xml version="1.0" encoding="utf-8"?>
 <MPD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -65,6 +61,10 @@ ad_tpl=ET.fromstring("""<?xml version="1.0" encoding="utf-8"?>
                 </AdaptationSet>
         </Period>
 </MPD>""")
+
+def get_format(AdaptationSet, Representation):
+    if((Representation.get('mimeType') == 'video/mp4') or (AdaptationSet.get('mimeType') == 'video/mp4') or (AdaptationSet.get('contentType') == 'video')): return 'video'
+    if((Representation.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('mimeType') == 'audio/mp4') or (AdaptationSet.get('contentType') == 'audio')): return 'audio'
 
 class DashMasterPlaylistReader(object):
     def __init__(self, filepath):
@@ -353,24 +353,22 @@ class DashMainManifestEditor():
 
                                 #segments
                                 SegmentTemplate1=ET.SubElement(Representation1,ns("SegmentTemplate"),AdaptationSet.find(ns("Representation")+"/"+ns("SegmentTemplate")).attrib)
-                                SegmentTemplate1.attrib["presentationTimeOffset"]=op#[AdaptationSet][0][0] TODO?
+                                SegmentTemplate1.attrib["presentationTimeOffset"]=str() #TODO calcul?
 
                                 #TODO SET SEGMENT_TIMELINE
 
                             continue
-        
-        print('DashMainManifestEditor#to_mpd#FINAL MANIFEST: ')
-        print(ET.tostring(self.manifest,encoding='utf-8',method='xml'))
 
     #export as mpd file
-    def to_file(self, segments, output_dir, filename):
+    def to_file(self, output_dir, filename):
         # Create dir
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
 
         # Create file
         with open(output_dir + os.sep + filename, "w") as output_file:
-            output_file.write()
+            output_file.write(XML_HEADER) #adding header file
+            output_file.write(ET.tostring(self.manifest,encoding='utf-8',method='xml').decode("utf-8"))
 
 ##**Personalized Dash Manifest**##
 #NOTE => for now the main goal is to be able to parse mpd with segmentsTLs and insert ADs based on period instead of segment partial duration, so no calcul required based on segs. In the case we evolve based on segments partials maybe we could transcode video mezzanine into segments playlists as HLS
@@ -392,7 +390,14 @@ merged_manifests = DashMerger(dmPlist,[{"master": ADdmPlist, "timestamp": 31.033
 merged_manifests.process_streams()
 
 #TODO THEN => Personalized Manifest: Export/Write obj -> mpd + Calcul (mediaPresentationDuration,...)
-final_manifest = DashMainManifestEditor('./video-storage/dash/my_video/index.mpd', merged_manifests.output_streams,ad_tpl).to_mpd()
-#personalized_master = merged_manifests.export()
+personalized_manifest = DashMainManifestEditor('./video-storage/dash/my_video/index.mpd', merged_manifests.output_streams,ad_tpl)
+personalized_manifest.to_mpd() #process
+print('DashMainManifestEditor#to_mpd#FINAL MANIFEST: ')
+print(ET.tostring(personalized_manifest.manifest,encoding='utf-8',method='xml'))
+
+print('\n')
+print('DashMainManifestEditor#to_file#Exporting final MPD file...')
+personalized_manifest.to_file('./video-storage/dash/my_video', 'index_.mpd')
+print('DashMainManifestEditor#to_file#Exporting final MPD file DONE!')
 
 ##**---------------------------**##
