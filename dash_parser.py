@@ -303,7 +303,7 @@ class DashMainManifestEditor():
                     for merged_stream in self.merged_streams['video']:
                         for seg in merged_stream["segments"]:
                             if((seg['seg_type'] == 'ad') and (seg["period_id"] == merged_seg['period_id'])): #filter on current period only
-                                for AdaptationSet in ad_tpl.find(ns("Period")):
+                                for AdaptationSet in self.ad_tpl.find(ns("Period")): #we build period sub-elements from an AD template
                                     AdaptationSet1=deepcopy(AdaptationSet)
                                     contentType=AdaptationSet1.attrib["contentType"]
                                     if not (self.merged_streams['video'][1]['content_type'] == contentType): continue #TODO dynamically select one stream with AD
@@ -392,7 +392,7 @@ merged_manifests = DashMerger(dmPlist,[{"master": ADdmPlist, "timestamp": 31.033
 merged_manifests.process_streams()
 
 #TODO THEN => Personalized Manifest: Export/Write obj -> mpd + Calcul (mediaPresentationDuration,...)
-final_manifest = DashMainManifestEditor('./video-storage/dash/my_video/index.mpd', merged_manifests.output_streams,None).to_mpd()
+final_manifest = DashMainManifestEditor('./video-storage/dash/my_video/index.mpd', merged_manifests.output_streams,ad_tpl).to_mpd()
 #personalized_master = merged_manifests.export()
 
 ##**---------------------------**##
